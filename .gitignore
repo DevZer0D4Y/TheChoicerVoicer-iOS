@@ -1,0 +1,4 @@
+ios/build/
+launcher/.godot/
+launcher/*.import
+.DS_Store

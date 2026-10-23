@@ -1,0 +1,130 @@
+diff --git a/platform/ios/godot_ios.mm b/platform/ios/godot_ios.mm
+index 9d35d43..19c9ffe 100644
+--- a/platform/ios/godot_ios.mm
++++ b/platform/ios/godot_ios.mm
+@@ -30,7 +30,9 @@
+ 
+ #import "os_ios.h"
+ 
++#include "core/io/file_access_pack.h"
+ #include "core/string/ustring.h"
++#include "core/version.h"
+ #include "main/main.h"
+ 
+ #include <stdio.h>
+@@ -71,6 +73,99 @@ int add_cmdline(int p_argc, char **p_args) {
+ 	return p_argc;
+ }
+ 
++// Settings the game needs on iOS, written next to the game pack as override.cfg
++// (the engine loads it from the main pack's folder after the game's own settings).
++static const char *game_override_cfg =
++		"[audio]\n"
++		"general/ios/session_category=2\n"
++		"[display]\n"
++		"window/stretch/aspect=\"expand\"\n"
++		"window/handheld/orientation=4\n"
++		"[autoload]\n"
++		"IOSPortFixes=\"*res://ios_port/port_fixes.gd\"\n";
++
++// The app's own pack, mounted next to the game's so its port fixes load.
++static NSString *app_pack = nil;
++
++// True if the file holds a game pack this engine can open: a .pck, or a
++// Windows/Linux export with the pack appended, made with Godot 4.0 to 4.4.
++static bool is_loadable_pack(NSString *p_path) {
++	NSFileHandle *f = [NSFileHandle fileHandleForReadingAtPath:p_path];
++	if (!f) {
++		return false;
++	}
++	uint32_t header[4] = {};
++	unsigned long long start = 0;
++	NSData *data = [f readDataOfLength:4];
++	if (data.length == 4 && *(const uint32_t *)data.bytes == PACK_HEADER_MAGIC) {
++		start = 0;
++	} else {
++		unsigned long long end = [f seekToEndOfFile];
++		if (end < 16) {
++			return false;
++		}
++		[f seekToFileOffset:end - 12];
++		data = [f readDataOfLength:12];
++		const uint8_t *trailer = (const uint8_t *)data.bytes;
++		uint64_t size = 0;
++		uint32_t magic = 0;
++		memcpy(&size, trailer, 8);
++		memcpy(&magic, trailer + 8, 4);
++		if (magic != PACK_HEADER_MAGIC || size + 12 > end) {
++			return false;
++		}
++		start = end - 12 - size;
++	}
++	[f seekToFileOffset:start];
++	data = [f readDataOfLength:16];
++	[f closeFile];
++	if (data.length != 16) {
++		return false;
++	}
++	memcpy(header, data.bytes, 16);
++	// magic, format version, engine major, engine minor
++	return header[0] == PACK_HEADER_MAGIC && header[1] == PACK_FORMAT_VERSION && header[2] == VERSION_MAJOR && header[3] <= VERSION_MINOR;
++}
++
++// Looks in the app's Documents folder (visible in the Files app) for the game's
++// Windows .exe or a .pck, and boots the first loadable one as the main pack. Without one, the
++// bundled launcher pack runs and tells the player what to copy where.
++int add_game_pack(int p_argc, char **p_args) {
++	NSString *documents = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
++	if (!documents) {
++		return p_argc;
++	}
++
++	NSArray<NSString *> *files = [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:documents error:nil] sortedArrayUsingSelector:@selector(compare:)];
++	NSString *pack = nil;
++	for (NSString *extension in @[ @"pck", @"exe" ]) {
++		for (NSString *file in files) {
++			NSString *path = [documents stringByAppendingPathComponent:file];
++			if (![file hasPrefix:@"."] && [[file pathExtension] caseInsensitiveCompare:extension] == NSOrderedSame && is_loadable_pack(path)) {
++				pack = path;
++				break;
++			}
++		}
++		if (pack) {
++			break;
++		}
++	}
++	if (!pack) {
++		return p_argc;
++	}
++
++	NSString *override_path = [documents stringByAppendingPathComponent:@"override.cfg"];
++	[[NSString stringWithUTF8String:game_override_cfg] writeToFile:override_path atomically:YES encoding:NSUTF8StringEncoding error:nil];
++
++	app_pack = [[[NSBundle mainBundle] pathsForResourcesOfType:@"pck" inDirectory:nil] firstObject];
++
++	p_args[p_argc++] = (char *)"--main-pack";
++	p_args[p_argc++] = strdup([pack fileSystemRepresentation]);
++	p_args[p_argc] = nullptr;
++
++	return p_argc;
++}
++
+ int ios_main(int argc, char **argv) {
+ 	size_t len = strlen(argv[0]);
+ 
+@@ -99,9 +194,15 @@ int ios_main(int argc, char **argv) {
+ 	fargv[argc] = nullptr;
+ 	argc = add_path(argc, fargv);
+ 	argc = add_cmdline(argc, fargv);
++	argc = add_game_pack(argc, fargv);
+ 
+ 	Error err = Main::setup(fargv[0], argc - 1, &fargv[1], false);
+ 
++	if (err == OK && app_pack) {
++		// Adds the port's files without replacing any of the game's.
++		PackedData::get_singleton()->add_pack(String::utf8([app_pack fileSystemRepresentation]), false, 0);
++	}
++
+ 	if (err != OK) {
+ 		if (err == ERR_HELP) { // Returned by --help and --version, so success.
+ 			return EXIT_SUCCESS;

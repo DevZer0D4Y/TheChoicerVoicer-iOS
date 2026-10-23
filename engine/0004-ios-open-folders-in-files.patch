@@ -1,0 +1,29 @@
+diff --git a/platform/ios/os_ios.mm b/platform/ios/os_ios.mm
+index 1d4db2f..48d25c9 100644
+--- a/platform/ios/os_ios.mm
++++ b/platform/ios/os_ios.mm
+@@ -340,11 +340,20 @@ String OS_IOS::get_model_name() const {
+ }
+ 
+ Error OS_IOS::shell_open(const String &p_uri) {
+-	NSString *urlPath = [[NSString alloc] initWithUTF8String:p_uri.utf8().get_data()];
+-	NSURL *url = [NSURL URLWithString:urlPath];
++	NSURL *url;
++	if (p_uri.begins_with("/") || p_uri.begins_with("file://")) {
++		// Local paths, like the app's folders, open in the Files app.
++		NSString *path = [NSString stringWithUTF8String:p_uri.trim_prefix("file://").utf8().get_data()];
++		NSString *encoded = [path stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLPathAllowedCharacterSet];
++		url = [NSURL URLWithString:[@"shareddocuments://" stringByAppendingString:encoded]];
++		ERR_FAIL_NULL_V(url, ERR_CANT_OPEN);
++	} else {
++		NSString *urlPath = [[NSString alloc] initWithUTF8String:p_uri.utf8().get_data()];
++		url = [NSURL URLWithString:urlPath];
+ 
+-	if (![[UIApplication sharedApplication] canOpenURL:url]) {
+-		return ERR_CANT_OPEN;
++		if (![[UIApplication sharedApplication] canOpenURL:url]) {
++			return ERR_CANT_OPEN;
++		}
+ 	}
+ 
+ 	print_verbose(vformat("Opening URL %s", p_uri));
