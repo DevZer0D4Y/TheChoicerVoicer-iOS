@@ -2,7 +2,7 @@
 
 An unofficial iPhone and iPad port of **[The Choicer Voicer](https://yeahmaybe.itch.io/the-choicer-voicer)**, YeahMaybe's voice-matching party game made with Godot 4. The app is a patched Godot 4.4.1 engine for iOS that runs the game from **your own copy** of it: you buy the game on itch.io, copy its Windows `.exe` into the app's folder, and the app plays it with working microphone input, touch controls and full-screen display.
 
-**The game is not included.** This repository and its IPA contain only the engine patches, a small launcher screen, iOS layout fixes and the build script. Buy the game from [YeahMaybe on itch.io](https://yeahmaybe.itch.io/the-choicer-voicer) to play.
+**The game is not included.** This repository and its IPA contain only the engine patches, a small launcher screen, iOS layout fixes and the build script; the release IPA's icon is the game's logo. Buy the game from [YeahMaybe on itch.io](https://yeahmaybe.itch.io/the-choicer-voicer) to play.
 
 **[Releases](https://github.com/DevZer0D4Y/TheChoicerVoicer-iOS/releases)** · [Changelog](CHANGELOG.md)
 
@@ -94,7 +94,7 @@ Needs macOS with Xcode, [SCons](https://scons.org) and the [Godot 4.4.1 editor](
 GODOT=/Applications/Godot.app/Contents/MacOS/Godot ios/build.sh
 ```
 
-The release IPA uses Godot's default icon, since the game's icon is part of the game. To give your build the game's own icon, pass your copy of the game, and the script takes the icon from it:
+Builds use Godot's default icon unless you pass your copy of the game, which the script takes the game's icon from (the release IPA is built this way):
 
 ```sh
 GAME_EXE="/path/to/TheChoicerVoicer_0-5-1 stable.exe" GODOT=/Applications/Godot.app/Contents/MacOS/Godot ios/build.sh
@@ -115,6 +115,6 @@ Godot 4.4 predates the UIScene app lifecycle that iOS 27 requires of apps built 
 
 - **The Choicer Voicer** by [YeahMaybe](https://yeahmaybe.itch.io). All rights to the game belong to its developer.
 - **[Godot Engine](https://godotengine.org)**, MIT license.
-- App icon: Godot's default project icon, based on the Godot logo by Andrea Calabró, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- App icon: The Choicer Voicer's logo by YeahMaybe in the release IPA. Builds without the game use Godot's default project icon, based on the Godot logo by Andrea Calabró, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-Unofficial fan project, not affiliated with or endorsed by YeahMaybe. It contains no part of the game; please buy the game to support its developer. This port must not be sold.
+Unofficial fan project, not affiliated with or endorsed by YeahMaybe. Apart from the game's logo as its icon, it contains no part of the game; please buy the game to support its developer. This port must not be sold.
